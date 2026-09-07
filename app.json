@@ -1,25 +1,29 @@
 {
   "expo": {
-    "name": "mobile-app",
-    "slug": "mobile-app",
+    "name": "Bazaar Nepal",
+    "slug": "bazaar-nepal",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bazaarnepal.app"
     },
     "android": {
+      "package": "com.bazaarnepal.app",
+      "versionCode": 1,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
-      },
-      "predictiveBackGestureEnabled": false
+        "backgroundColor": "#F8FAFC",
+        "foregroundImage": "./assets/android-icon-foreground.png"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "developer": "Mr.Aayush Bhandari",
+      "studio": "Root Spectra"
     }
   }
 }

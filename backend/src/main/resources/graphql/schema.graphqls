@@ -1,0 +1,257 @@
+type User {
+    id: ID!
+    name: String!
+    email: String
+    avatar: String!
+    phone: String
+    whatsapp: String
+    phoneVisibility: String!
+    whatsappVisibility: String!
+    emailVisibility: String!
+    onlineStatus: String!
+    accountStatus: String!
+    isVerified: Boolean!
+    reputation: Int!
+    itemsSold: Int!
+    trustScore: Int!
+    rating: Float!
+    ratingCount: Int!
+    joinDate: String!
+    lastSeen: String
+    district: String
+    province: String
+    country: String
+    latitude: Float
+    longitude: Float
+    contactPreference: String!
+    token: String
+}
+
+type Product {
+    id: ID!
+    title: String!
+    description: String!
+    price: Float!
+    currency: String!
+    negotiable: Boolean!
+    condition: String
+    brand: String
+    quantity: Int!
+    stockStatus: String!
+    category: Category!
+    subcategory: String
+    location: String!
+    district: String
+    province: String
+    country: String
+    latitude: Float
+    longitude: Float
+    images: [String!]!
+    videos: [String!]!
+    tags: [String!]!
+    seller: User!
+    postedAt: String!
+    views: Int!
+    favoriteCount: Int!
+    chatCount: Int!
+    isEscrowEligible: Boolean!
+    isBoosted: Boolean!
+    isDeliveryAvailable: Boolean!
+    isPickupAvailable: Boolean!
+    isActive: Boolean!
+    isSold: Boolean!
+    moderationStatus: String!
+    priceHistory: [PriceEntry!]!
+}
+
+type PriceEntry {
+    date: String!
+    price: Float!
+}
+
+type Category {
+    id: ID!
+    name: String!
+    icon: String!
+}
+
+type Conversation {
+    id: ID!
+    buyer: User!
+    seller: User!
+    product: Product
+    lastMessage: String!
+    lastMessageAt: String!
+    unreadBuyer: Int!
+    unreadSeller: Int!
+    createdAt: String!
+}
+
+type Message {
+    id: ID!
+    conversationId: ID!
+    sender: User!
+    content: String!
+    contentType: String!
+    attachmentUrl: String
+    isRead: Boolean!
+    isDelivered: Boolean!
+    sentAt: String!
+    readAt: String
+}
+
+type Notification {
+    id: ID!
+    type: String!
+    title: String!
+    body: String
+    imageUrl: String
+    actionUrl: String
+    isRead: Boolean!
+    createdAt: String!
+}
+
+type Report {
+    id: ID!
+    reporter: User!
+    targetType: String!
+    targetId: String!
+    reason: String!
+    description: String
+    status: String!
+    createdAt: String!
+}
+
+type AuthPayload {
+    user: User!
+    token: String!
+    refreshToken: String!
+}
+
+type UnreadCounts {
+    messages: Int!
+    notifications: Int!
+}
+
+input RegisterInput {
+    name: String!
+    email: String!
+    password: String!
+    phone: String
+}
+
+input LoginInput {
+    email: String!
+    password: String!
+}
+
+input UpdateProfileInput {
+    name: String
+    avatar: String
+    phone: String
+    whatsapp: String
+    phoneVisibility: String
+    whatsappVisibility: String
+    emailVisibility: String
+    district: String
+    province: String
+    country: String
+    latitude: Float
+    longitude: Float
+    contactPreference: String
+    allowPhoneCalls: Boolean
+    allowWhatsApp: Boolean
+    allowChat: Boolean
+}
+
+input ProductInput {
+    title: String!
+    description: String!
+    price: Float!
+    currency: String!
+    negotiable: Boolean
+    condition: String
+    brand: String
+    quantity: Int
+    stockStatus: String
+    categoryId: ID!
+    subcategory: String
+    location: String!
+    district: String
+    province: String
+    country: String
+    latitude: Float
+    longitude: Float
+    images: [String!]!
+    videos: [String!]
+    tags: [String!]
+    isEscrowEligible: Boolean
+    isDeliveryAvailable: Boolean
+    isPickupAvailable: Boolean
+}
+
+input ReportInput {
+    targetType: String!
+    targetId: String!
+    reason: String!
+    description: String
+}
+
+type Query {
+    me: User
+    products(
+        categoryId: ID,
+        search: String,
+        sellerId: ID,
+        minPrice: Float,
+        maxPrice: Float,
+        condition: String,
+        brand: String,
+        district: String,
+        province: String,
+        negotiable: Boolean,
+        sortBy: String,
+        page: Int,
+        limit: Int
+    ): ProductConnection!
+    product(id: ID!): Product
+    categories: [Category!]!
+    sellers: [User!]!
+    conversations: [Conversation!]!
+    conversation(id: ID!): Conversation
+    messages(conversationId: ID!): [Message!]!
+    notifications: [Notification!]!
+    unreadCounts: UnreadCounts!
+    savedItems: [Product!]!
+    searchSuggestions(query: String!): [String!]!
+}
+
+type ProductConnection {
+    items: [Product!]!
+    totalCount: Int!
+    hasMore: Boolean!
+    page: Int!
+}
+
+type Mutation {
+    register(input: RegisterInput!): AuthPayload!
+    login(input: LoginInput!): AuthPayload!
+    refreshToken(token: String!): AuthPayload!
+    updateProfile(input: UpdateProfileInput!): User!
+    addProduct(input: ProductInput!): Product!
+    updateProduct(id: ID!, input: ProductInput!): Product!
+    deleteProduct(id: ID!): Boolean!
+    toggleSavedItem(productId: ID!): Boolean!
+    sendMessage(conversationId: ID!, content: String!): Message!
+    startConversation(sellerId: ID!, productId: ID!, message: String!): Conversation!
+    markMessagesRead(conversationId: ID!): Int!
+    markNotificationsRead: Int!
+    createReport(input: ReportInput!): Report!
+    recordView(productId: ID!): Boolean!
+}
+
+type Subscription {
+    messageReceived(conversationId: ID!): Message!
+    notificationReceived: Notification!
+    productAdded: Product!
+}

@@ -1,0 +1,68 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: bazaar-nepal
+
+  datasource:
+    url: jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:bazaarnepal}
+    username: ${PGUSER:postgres}
+    password: ${PGPASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  graphql:
+    graphiql:
+      enabled: false
+      path: /graphiql
+    schema:
+      locations: classpath:graphql/
+    websocket:
+      path: /subscriptions
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+  refresh-expiration: ${JWT_REFRESH_EXPIRATION:2592000000}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:h2:mem:bazaarnepal
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  h2:
+    console:
+      enabled: true
+
+  graphql:
+    graphiql:
+      enabled: true
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+  flyway:
+    enabled: false
