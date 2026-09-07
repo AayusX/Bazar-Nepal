@@ -40,6 +40,41 @@ export async function checkServerHealth(): Promise<boolean> {
   }
 }
 
+// ── Auth ──────────────────────────────────────────────────────────
+export async function registerUser(input: {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
+}): Promise<{ token: string; user: any }> {
+  const data = await apiFetch('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  });
+  if (!data.ok) throw new Error(data.error || 'Could not create your account');
+  return data;
+}
+
+export async function loginUser(
+  email: string,
+  password: string
+): Promise<{ token: string; user: any }> {
+  const data = await apiFetch('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+  if (!data.ok) throw new Error(data.error || 'Could not sign in');
+  return data;
+}
+
+export async function fetchCurrentUser(token: string): Promise<any> {
+  const data = await fetch(`${SERVER_URL}/api/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then((r) => r.json());
+  if (!data.ok) throw new Error(data.error || 'Session expired');
+  return data.user;
+}
+
 // ── Products ──────────────────────────────────────────────────────
 export async function fetchAllProducts(params: { category?: string; search?: string } = {}): Promise<any[]> {
   const query = new URLSearchParams();

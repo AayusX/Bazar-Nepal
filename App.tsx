@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { ApolloProvider } from '@apollo/client/react';
-import { client } from './src/api/client';
 import { AppProvider } from './src/context/AppContext';
 import AppNavigator from './src/navigation/AppNavigator';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -36,17 +34,15 @@ export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
   return (
-    <ApolloProvider client={client}>
-      <SafeAreaProvider>
-        <AppProvider>
-          <StatusBar style="dark" />
-          <View style={styles.root}>
-            <AppNavigator />
-            {showSplash && <Splash onDone={() => setShowSplash(false)} />}
-          </View>
-        </AppProvider>
-      </SafeAreaProvider>
-    </ApolloProvider>
+    <SafeAreaProvider>
+      <AppProvider>
+        <StatusBar style="dark" />
+        <View style={styles.root}>
+          <AppNavigator />
+          {showSplash && <Splash onDone={() => setShowSplash(false)} />}
+        </View>
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }
 

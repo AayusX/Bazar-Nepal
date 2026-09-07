@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, User as UserIcon, Phone, Tag } from 'lucide-react-native';
-import { useMutation } from '@apollo/client/react';
-import { REGISTER_MUTATION } from '../api/operations';
+import { registerUser } from '../services/api';
 import { useApp } from '../context/AppContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, typography } from '../theme';
@@ -16,27 +15,10 @@ export default function RegisterScreen({ navigation }: any) {
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useApp();
 
-  const [doRegister, { loading }] = useMutation(REGISTER_MUTATION, {
-    onCompleted: async (data: any) => {
-      await AsyncStorage.setItem('@authToken', data.register.token);
-      login({
-        id: data.register.user.id,
-        name: data.register.user.name,
-        avatar: data.register.user.avatar,
-        reputation: data.register.user.reputation,
-        itemsSold: data.register.user.itemsSold,
-        joinDate: data.register.user.joinDate,
-      });
-      navigation.navigate('Main');
-    },
-    onError: (err) => {
-      setError(err.message || 'Could not create your account. Try again.');
-    },
-  });
-
-  const handleRegister = () => {
+  const handleRegister = async () => {
     if (!name || !email || !password) {
       setError('Fill in your name, email, and password.');
       return;
@@ -46,11 +28,29 @@ export default function RegisterScreen({ navigation }: any) {
       return;
     }
     setError('');
-    doRegister({
-      variables: {
-        input: { name, email, password, phone: phone || undefined },
-      },
-    });
+    setLoading(true);
+    try {
+      const data = await registerUser({
+        name: name.trim(),
+        email: email.trim(),
+        password,
+        phone: phone.trim() || undefined,
+      });
+      await AsyncStorage.setItem('@authToken', data.token);
+      login({
+        id: data.user.id,
+        name: data.user.name,
+        avatar: data.user.avatar,
+        reputation: data.user.reputation,
+        itemsSold: data.user.itemsSold,
+        joinDate: data.user.joinDate,
+      });
+      navigation.navigate('Main');
+    } catch (err: any) {
+      setError(err.message || 'Could not create your account. Try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

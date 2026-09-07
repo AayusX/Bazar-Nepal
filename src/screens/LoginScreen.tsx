@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Mail, Lock, Tag } from 'lucide-react-native';
-import { useMutation } from '@apollo/client/react';
-import { LOGIN_MUTATION } from '../api/operations';
+import { loginUser } from '../services/api';
 import { useApp } from '../context/AppContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, typography } from '../theme';
@@ -14,33 +13,33 @@ export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useApp();
 
-  const [doLogin, { loading }] = useMutation(LOGIN_MUTATION, {
-    onCompleted: async (data: any) => {
-      await AsyncStorage.setItem('@authToken', data.login.token);
-      login({
-        id: data.login.user.id,
-        name: data.login.user.name,
-        avatar: data.login.user.avatar,
-        reputation: data.login.user.reputation,
-        itemsSold: data.login.user.itemsSold,
-        joinDate: data.login.user.joinDate,
-      });
-      navigation.navigate('Main');
-    },
-    onError: (err) => {
-      setError(err.message || 'Could not sign in. Check your details and try again.');
-    },
-  });
-
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       setError('Enter your email and password.');
       return;
     }
     setError('');
-    doLogin({ variables: { input: { email, password } } });
+    setLoading(true);
+    try {
+      const data = await loginUser(email.trim(), password);
+      await AsyncStorage.setItem('@authToken', data.token);
+      login({
+        id: data.user.id,
+        name: data.user.name,
+        avatar: data.user.avatar,
+        reputation: data.user.reputation,
+        itemsSold: data.user.itemsSold,
+        joinDate: data.user.joinDate,
+      });
+      navigation.navigate('Main');
+    } catch (err: any) {
+      setError(err.message || 'Could not sign in. Check your details and try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
