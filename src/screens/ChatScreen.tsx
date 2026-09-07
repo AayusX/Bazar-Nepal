@@ -18,10 +18,10 @@ const QUICK_PROMPTS = [
 
 export default function ChatScreen({ route, navigation }: any) {
   const {
-    sellerId = 'u2',
-    productId = 'p1',
+    sellerId = '',
+    productId = '',
     sellerName = 'Seller',
-    sellerPhone = '+977-9841567890',
+    sellerPhone = '',
     initialMessage = '',
   } = route?.params || {};
 
@@ -104,7 +104,7 @@ export default function ChatScreen({ route, navigation }: any) {
           <Text style={styles.headerName} numberOfLines={1}>{sellerName}</Text>
           <View style={styles.headerBadge}>
             <ShieldCheck size={12} color="#047857" />
-            <Text style={styles.headerSub}>Verified Nepali Seller · Online</Text>
+            <Text style={styles.headerSub}>Bazaar Nepal member</Text>
           </View>
         </View>
 

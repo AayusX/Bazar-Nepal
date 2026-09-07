@@ -8,38 +8,26 @@ import { colors } from '../theme';
 export default function InboxScreen({ navigation }: any) {
   const { chatMessages, currentUser } = useApp();
 
-  // Aggregate conversations from chatMessages
-  const convEntries = Object.entries(chatMessages);
-
-  // If no conversations yet, create starter mock conversations with sellers
-  const displayConversations = convEntries.length > 0
-    ? convEntries.map(([key, msgs]) => {
-        const lastMsg = msgs[msgs.length - 1];
-        const isFromSeller = !lastMsg?.isMine;
-        return {
-          id: key,
-          name: isFromSeller ? (lastMsg?.senderName || 'Verified Seller') : 'Suman Gurung',
-          lastMessage: lastMsg?.content || 'Namaste! Inquired about listing.',
-          time: lastMsg?.sentAt ? new Date(lastMsg.sentAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'Today',
-          unread: isFromSeller,
-        };
-      })
-    : [
-        {
-          id: 'conv_u2_p1',
-          name: 'Suman Gurung (MacBook Air M2)',
-          lastMessage: 'Namaste! Yes, this item is available for inspection in New Road.',
-          time: '10:45 AM',
-          unread: true,
-        },
-        {
-          id: 'conv_u3_p2',
-          name: 'Priya Sharma (Royal Enfield 350)',
-          lastMessage: 'Tax cleared up to 2081/82. Bluebook is ready on hand.',
-          time: 'Yesterday',
-          unread: false,
-        }
-      ];
+  // Aggregate only real conversations (each chat is keyed by `conv_<sellerId>_<productId>`)
+  const displayConversations = Object.entries(chatMessages).map(([key, msgs]) => {
+    const lastMsg = msgs[msgs.length - 1];
+    const isFromSeller = !lastMsg?.isMine;
+    const rest = key.startsWith('conv_') ? key.slice(5) : key;
+    const pIdx = rest.lastIndexOf('_p_');
+    const sellerId = pIdx === -1 ? rest : rest.slice(0, pIdx);
+    const productId = pIdx === -1 ? '' : rest.slice(pIdx + 1);
+    return {
+      id: key,
+      name: lastMsg?.senderName || 'Bazaar Member',
+      lastMessage: lastMsg?.content || 'Inquired about listing.',
+      time: lastMsg?.sentAt
+        ? new Date(lastMsg.sentAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        : 'Today',
+      unread: isFromSeller,
+      sellerId,
+      productId,
+    };
+  });
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -59,9 +47,9 @@ export default function InboxScreen({ navigation }: any) {
           <TouchableOpacity
             style={styles.convCard}
             onPress={() => navigation.navigate('Chat', {
-              sellerName: item.name.split(' (')[0],
-              sellerId: 'u2',
-              productId: 'p1',
+              sellerName: item.name,
+              sellerId: item.sellerId,
+              productId: item.productId,
             })}
             activeOpacity={0.85}
           >
