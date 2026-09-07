@@ -1,6 +1,6 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Product, User, ChatMessage, MOCK_PRODUCTS, MOCK_SELLERS, CURRENT_USER } from '../constants/mockData';
+import { Product, User, ChatMessage } from '../constants/mockData';
 import * as API from '../services/api';
 
 export type AppNotification = {
@@ -52,26 +52,15 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 const SELLER_AUTO_RESPONSES: string[] = [];
 
-const INITIAL_NOTIFICATIONS: AppNotification[] = [
-  {
-    id: 'notif_1',
-    title: 'Welcome to Bazaar Nepal',
-    body: 'Your account is ready. Post your first listing to reach buyers across Nepal.',
-    type: 'system',
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-    isRead: false,
-  },
-];
-
 export const AppProvider = ({ children }: { children: ReactNode }) => {
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
-  const [currentUser, setCurrentUser] = useState<User | null>(CURRENT_USER);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [searchQuery, setSearchQueryRaw] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [savedItems, setSavedItems] = useState<string[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
-  const [notifications, setNotifications] = useState<AppNotification[]>(INITIAL_NOTIFICATIONS);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isServerConnected, setIsServerConnected] = useState(false);
 
@@ -83,7 +72,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     const loadData = async () => {
       try {
         const storedUser = await AsyncStorage.getItem('@bazaar_user_v4');
-        if (storedUser) setCurrentUser(JSON.parse(storedUser));
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          // Only restore real server accounts (they carry an email). This also
+          // purges any legacy mock user saved by earlier app versions.
+          if (parsed && parsed.email && parsed.id) {
+            setCurrentUser(parsed);
+          } else {
+            await AsyncStorage.removeItem('@bazaar_user_v4').catch(() => {});
+          }
+        }
 
         const storedSaved = await AsyncStorage.getItem('@bazaar_saved_v4');
         if (storedSaved) setSavedItems(JSON.parse(storedSaved));
@@ -111,10 +109,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       const serverProducts = await API.fetchAllProducts();
       setIsServerConnected(true);
       setProducts(prev => {
-        if (!serverProducts || serverProducts.length === 0) return prev;
-        // Replace everything with the live server feed, but keep any
-        // listings created while offline (p_local_* ids) so they are
-        // never silently wiped when the connection returns.
+        // Live server feed is the single source of truth. Keep only the
+        // listings this device created while offline (p_local_* ids) so they
+        // are never silently wiped when the connection returns.
         const localOnly = prev.filter(p => p.id.startsWith('p_local_'));
         return [...serverProducts, ...localOnly] as Product[];
       });
@@ -310,7 +307,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
         location: p.location,
       };
     }
-    if (MOCK_SELLERS[id]) return MOCK_SELLERS[id];
     return { id: id || 'u_unknown', name: 'Bazaar Member', phone: '+977-9800000000' };
   }, [currentUser, products]);
 

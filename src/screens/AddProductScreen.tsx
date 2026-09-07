@@ -124,6 +124,14 @@ export default function AddProductScreen({ route, navigation }: any) {
   }, [editProduct, deleteProduct, navigation]);
 
   const handleSubmit = useCallback(async () => {
+    if (!currentUser) {
+      Alert.alert(
+        'Sign in required',
+        'Please sign in to your Bazaar Nepal account before posting a listing.',
+        [{ text: 'Not now' }, { text: 'Sign in', onPress: () => navigation.navigate('Login') }]
+      );
+      return;
+    }
     if (!title.trim()) {
       Alert.alert('Missing Title', 'Please enter a clear title for your product.');
       return;
@@ -193,7 +201,7 @@ export default function AddProductScreen({ route, navigation }: any) {
         );
       }
     }
-  }, [isEditing, editProduct, title, price, phone, selectedCat, location, description, isEscrow, images, updateProduct, addProduct, navigation]);
+  }, [isEditing, editProduct, title, price, phone, selectedCat, location, description, isEscrow, images, updateProduct, addProduct, navigation, currentUser]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
