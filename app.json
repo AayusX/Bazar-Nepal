@@ -12,12 +12,23 @@
     },
     "android": {
       "package": "com.bazaarnepal.app",
-      "versionCode": 1,
+      "versionCode": 6,
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#F8FAFC",
         "foregroundImage": "./assets/android-icon-foreground.png"
       }
     },
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#B91C1C",
+          "defaultChannel": "bazaar_nepal"
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     },

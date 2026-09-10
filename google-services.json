@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "35540804512",
+    "project_id": "bazar-nepal-f2f67",
+    "storage_bucket": "bazar-nepal-f2f67.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:35540804512:android:b89f4c48c1cdba2798fac5",
+        "android_client_info": {
+          "package_name": "com.bazaarnepal.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCfQi3j8Yw9lpeGVDBPvh-HW21WRcM2lHE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

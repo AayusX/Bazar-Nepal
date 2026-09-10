@@ -3,6 +3,7 @@ import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
+import { navigationRef } from './navigation';
 import { Home, Search, User, Plus, MessageCircle } from 'lucide-react-native';
 import { colors } from '../theme';
 
@@ -100,7 +101,7 @@ function HomeTabs() {
 
 export default function AppNavigator() {
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Main" component={HomeTabs} />
         <Stack.Screen name="ProductDetails" component={ProductDetailsScreen} options={{ animation: 'slide_from_right' }} />

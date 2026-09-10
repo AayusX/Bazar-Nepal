@@ -4,6 +4,8 @@
  * Falls back gracefully to local state if server is unreachable.
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 // ── PRODUCTION SERVER (Railway) ───────────────────────────────────
 // The Express + PostgreSQL API is deployed on Railway and persists data
 // in Railway Postgres. Set EXPO_PUBLIC_API_URL to override.
@@ -82,6 +84,23 @@ export async function fetchAllProducts(params: { category?: string; search?: str
   if (params.search)   query.set('search', params.search);
   const data = await apiFetch(`/api/products?${query.toString()}`);
   return data.ok ? data.products : [];
+}
+
+export async function fetchProduct(id: string): Promise<any | null> {
+  const data = await apiFetch(`/api/products/${id}`);
+  return data.ok ? data.product : null;
+}
+
+// ── Push notifications ──────────────────────────────────────────────
+export async function registerPushToken(token: string): Promise<void> {
+  const authToken = await AsyncStorage.getItem('@authToken');
+  if (!authToken) throw new Error('Not signed in');
+  const data = await fetch(`${SERVER_URL}/api/push/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+    body: JSON.stringify({ token }),
+  }).then((r) => r.json());
+  if (!data.ok) throw new Error(data.error || 'Failed to register device for push');
 }
 
 export async function createProduct(product: Record<string, any>): Promise<any> {

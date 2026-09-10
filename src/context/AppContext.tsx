@@ -1,7 +1,9 @@
 import React, { createContext, useState, useContext, ReactNode, useCallback, useMemo, useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Product, User, ChatMessage } from '../constants/mockData';
 import * as API from '../services/api';
+import * as Notifications from '../services/notifications';
 
 export type AppNotification = {
   id: string;
@@ -10,6 +12,12 @@ export type AppNotification = {
   type: 'listing' | 'message' | 'offer' | 'escrow' | 'system';
   createdAt: string;
   isRead: boolean;
+};
+
+export type ChatPopupData = {
+  convKey: string;
+  title: string;
+  body: string;
 };
 
 type AppContextType = {
@@ -46,6 +54,11 @@ type AppContextType = {
   unreadNotificationCount: number;
   markNotificationsRead: () => void;
   clearNotifications: () => void;
+
+  // In-app themed chat popup
+  chatPopup: ChatPopupData | null;
+  showChatPopup: (popup: ChatPopupData) => void;
+  dismissChatPopup: () => void;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -61,6 +74,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [chatPopup, setChatPopup] = useState<ChatPopupData | null>(null);
   const [isLoaded, setIsLoaded] = useState(false);
   const [isServerConnected, setIsServerConnected] = useState(false);
 
@@ -211,6 +225,26 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const unreadNotificationCount = useMemo(() =>
     notifications.filter(n => !n.isRead).length, [notifications]);
+
+  // ── Push notification registration (once per signed-in account) ──
+  // FCM tokens are a per-install / per-device value; register on Android
+  // whenever a signed-in user (re)launches the app.
+  const pushRegisteredFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!currentUser) return;
+    if (Platform.OS !== 'android') return;
+    if (pushRegisteredFor.current === currentUser.id) return;
+    pushRegisteredFor.current = currentUser.id;
+    Notifications.registerForPushNotifications().catch(() => {});
+  }, [currentUser]);
+
+  const showChatPopup = useCallback((popup: ChatPopupData) => {
+    setChatPopup(popup);
+  }, []);
+
+  const dismissChatPopup = useCallback(() => {
+    setChatPopup(null);
+  }, []);
 
   // ── Chat ──────────────────────────────────────────────────────
   const getChatForConversation = useCallback((convKey: string) =>
@@ -390,6 +424,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     addProduct, updateProduct, deleteProduct, incrementViews,
     chatMessages, sendMessage, getChatForConversation,
     notifications, unreadNotificationCount, markNotificationsRead, clearNotifications,
+    chatPopup, showChatPopup, dismissChatPopup,
     isServerConnected,
   }), [
     products, currentUser, login, logout, searchQuery, selectedCategory,
@@ -397,6 +432,7 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     setSearchQuery, addRecentSearch, clearRecentSearches, addProduct, updateProduct, deleteProduct,
     incrementViews, chatMessages, sendMessage, getChatForConversation,
     notifications, unreadNotificationCount, markNotificationsRead, clearNotifications,
+    chatPopup, showChatPopup, dismissChatPopup,
     isServerConnected,
   ]);
 
