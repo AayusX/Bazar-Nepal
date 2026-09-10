@@ -8,9 +8,18 @@ import { Camera, Image as ImageIcon, MapPin, DollarSign, Phone, ShieldCheck, Che
 import * as ImagePicker from 'expo-image-picker';
 import { useApp } from '../context/AppContext';
 import { CATEGORIES, Product } from '../constants/mockData';
+import { uploadPhoto } from '../services/api';
 import { colors } from '../theme';
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+
+type PickedImage = {
+  uri: string;
+  base64?: string | null;
+  mime?: string | null;
+};
+
+const isRemoteUrl = (uri: string) => /^https?:\/\//i.test(uri);
 
 export default function AddProductScreen({ route, navigation }: any) {
   const editProduct: Product | undefined = route?.params?.editProduct;
@@ -25,7 +34,9 @@ export default function AddProductScreen({ route, navigation }: any) {
   const [selectedCat, setSelectedCat] = useState<string | null>(editProduct?.category || null);
   const [location, setLocation] = useState(editProduct?.location || currentUser?.location || 'New Road, Kathmandu');
   const [isEscrow, setIsEscrow] = useState(editProduct ? editProduct.isEscrowEligible : true);
-  const [images, setImages] = useState<string[]>(editProduct?.images || []);
+  const [images, setImages] = useState<PickedImage[]>(
+    (editProduct?.images || []).map(uri => ({ uri }))
+  );
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -37,7 +48,7 @@ export default function AddProductScreen({ route, navigation }: any) {
       setSelectedCat(editProduct.category);
       setLocation(editProduct.location);
       setIsEscrow(editProduct.isEscrowEligible);
-      setImages(editProduct.images || []);
+      setImages((editProduct.images || []).map(uri => ({ uri })));
     }
   }, [editProduct]);
 
@@ -57,7 +68,7 @@ export default function AddProductScreen({ route, navigation }: any) {
       return;
     }
 
-    setImages(prev => [...prev, asset.uri]);
+    setImages(prev => [...prev, { uri: asset.uri, base64: asset.base64 ?? null, mime: asset.mimeType ?? null }]);
   };
 
   const pickImage = async () => {
@@ -65,6 +76,7 @@ export default function AddProductScreen({ route, navigation }: any) {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         allowsMultipleSelection: true,
+        base64: true,
         quality: 0.8,
       });
 
@@ -87,6 +99,7 @@ export default function AddProductScreen({ route, navigation }: any) {
       const result = await ImagePicker.launchCameraAsync({
         allowsEditing: true,
         aspect: [4, 3],
+        base64: true,
         quality: 0.8,
       });
 
@@ -162,44 +175,69 @@ export default function AddProductScreen({ route, navigation }: any) {
 
     setSubmitting(true);
 
-    if (isEditing && editProduct) {
-      await updateProduct(editProduct.id, {
-        title: title.trim(),
-        description: description.trim(),
-        price: Number(price),
-        sellerPhone: phone.trim(),
-        category: selectedCat,
-        location: location.trim(),
-        isEscrowEligible: isEscrow,
-        images: images,
-      });
+    try {
+      // Upload any locally picked photos to the server (max 5 MB each) so the
+      // listing always carries real, viewable image URLs.
+      const urls: string[] = [];
+      for (const img of images) {
+        if (isRemoteUrl(img.uri)) {
+          urls.push(img.uri);
+          continue;
+        }
+        if (!img.base64) {
+          throw new Error('One of your photos could not be prepared for upload. Please remove it and select a new one.');
+        }
+        const mime = img.mime && /^image\//.test(img.mime) ? img.mime : 'image/jpeg';
+        urls.push(await uploadPhoto(img.base64, mime));
+      }
+
+      if (isEditing && editProduct) {
+        await updateProduct(editProduct.id, {
+          title: title.trim(),
+          description: description.trim(),
+          price: Number(price),
+          sellerPhone: phone.trim(),
+          category: selectedCat,
+          location: location.trim(),
+          isEscrowEligible: isEscrow,
+          images: urls,
+        });
+        setSubmitting(false);
+        Alert.alert(
+          'Listing Updated',
+          'Your changes are now live across Bazaar Nepal!',
+          [{ text: 'View Updated Listing', onPress: () => navigation.navigate('Home') }]
+        );
+      } else {
+        const res = await addProduct({
+          title: title.trim(),
+          description: description.trim() || 'No description provided by seller.',
+          price: Number(price),
+          currency: 'NPR',
+          category: selectedCat,
+          sellerPhone: phone.trim(),
+          location: location.trim(),
+          isEscrowEligible: isEscrow,
+          images: urls,
+        });
+        setSubmitting(false);
+
+        if (res.ok) {
+          Alert.alert(
+            'Listing Published Live',
+            res.product?.id?.startsWith?.('p_local_')
+              ? 'Your product is saved on this device and will be published automatically when the server is reachable.'
+              : 'Your product is now live on Bazaar Nepal! Buyers across Nepal can now discover, chat, and call you directly.',
+            [{ text: 'View on Home', onPress: () => navigation.navigate('Home') }]
+          );
+        }
+      }
+    } catch (e: any) {
       setSubmitting(false);
       Alert.alert(
-        'Listing Updated',
-        'Your changes are now live across Bazaar Nepal!',
-        [{ text: 'View Updated Listing', onPress: () => navigation.navigate('Home') }]
+        'Photo Upload Failed',
+        `${e?.message || 'Could not upload your photos. Please check your internet connection and try again.'}\n\nYour listing was NOT published.`
       );
-    } else {
-      const res = await addProduct({
-        title: title.trim(),
-        description: description.trim() || 'No description provided by seller.',
-        price: Number(price),
-        currency: 'NPR',
-        category: selectedCat,
-        sellerPhone: phone.trim(),
-        location: location.trim(),
-        isEscrowEligible: isEscrow,
-        images: images,
-      });
-      setSubmitting(false);
-
-      if (res.ok) {
-        Alert.alert(
-          'Listing Published Live',
-          'Your product is now live on Bazaar Nepal! Buyers across Nepal can now discover, chat, and call you directly.',
-          [{ text: 'View on Home', onPress: () => navigation.navigate('Home') }]
-        );
-      }
     }
   }, [isEditing, editProduct, title, price, phone, selectedCat, location, description, isEscrow, images, updateProduct, addProduct, navigation, currentUser]);
 
@@ -230,9 +268,9 @@ export default function AddProductScreen({ route, navigation }: any) {
           <View style={styles.photoBox}>
             {images.length > 0 && (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.photoStrip}>
-                {images.map((uri, idx) => (
-                  <View key={`img_${idx}`} style={styles.photoThumbWrap}>
-                    <Image source={{ uri }} style={styles.photoThumb} />
+                {images.map((img, idx) => (
+                  <View key={`img_${idx}_${img.uri}`} style={styles.photoThumbWrap}>
+                    <Image source={{ uri: img.uri }} style={styles.photoThumb} />
                     <TouchableOpacity style={styles.removePhotoBtn} onPress={() => removePhoto(idx)}>
                       <X size={14} color="#fff" />
                     </TouchableOpacity>

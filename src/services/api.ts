@@ -115,6 +115,21 @@ export async function incrementViewCount(id: string): Promise<number> {
   return data.views ?? 0;
 }
 
+// ── Uploads ────────────────────────────────────────────────────────
+// Uploads a photo as a base64 data URL (max 5 MB) and returns a public
+// image URL that the server serves from /uploads.
+export async function uploadPhoto(
+  base64: string,
+  mimeType: string
+): Promise<string> {
+  const data = await apiFetch('/api/uploads', {
+    method: 'POST',
+    body: JSON.stringify({ data: `data:${mimeType};base64,${base64}` }),
+  });
+  if (!data.ok) throw new Error(data.error || 'Photo upload failed');
+  return data.url;
+}
+
 // ── Chat ──────────────────────────────────────────────────────────
 export async function fetchMessages(convKey: string): Promise<any[]> {
   const data = await apiFetch(`/api/chats/${encodeURIComponent(convKey)}`);

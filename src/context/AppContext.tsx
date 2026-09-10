@@ -66,6 +66,13 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   // Poll server for fresh product data every 15 seconds
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const productsRef = useRef<Product[]>([]);
+  useEffect(() => { productsRef.current = products; }, [products]);
+
+  // Offline-created listings are persisted under a per-listing key so they can
+  // be pushed to the server automatically once the connection returns.
+  const PENDING_PREFIX = '@bazaar_pending_';
+  const pendingKey = (id: string) => PENDING_PREFIX + id;
 
   // ── Load from AsyncStorage on startup ──────────────────────────
   useEffect(() => {
@@ -103,22 +110,56 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
     loadData();
   }, []);
 
+  // ── Notification helpers ───────────────────────────────────────
+  const addNotification = useCallback((title: string, body: string, type: AppNotification['type']) => {
+    const newNotif: AppNotification = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      title, body, type,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+    };
+    setNotifications(prev => [newNotif, ...prev]);
+  }, []);
+
   // ── Connect to shared server & sync products ───────────────────
   const syncFromServer = useCallback(async () => {
     try {
       const serverProducts = await API.fetchAllProducts();
       setIsServerConnected(true);
+
+      // Push any listings this device created while offline to the server.
+      const pushedProducts: Product[] = [];
+      const localIds = productsRef.current
+        .filter(p => p.id.startsWith('p_local_'))
+        .map(p => p.id);
+      for (const localId of localIds) {
+        try {
+          const raw = await AsyncStorage.getItem(pendingKey(localId));
+          if (!raw) continue;
+          const payload = JSON.parse(raw);
+          const serverProduct = await API.createProduct(payload);
+          await AsyncStorage.removeItem(pendingKey(localId)).catch(() => {});
+          pushedProducts.push(serverProduct as Product);
+          addNotification(
+            'Listing Published Live',
+            `"${payload.title || 'your listing'}" was saved while offline and is now live on the server!`,
+            'listing'
+          );
+        } catch {
+          // Still offline for this listing — keep it local and retry next poll.
+        }
+      }
+
       setProducts(prev => {
-        // Live server feed is the single source of truth. Keep only the
-        // listings this device created while offline (p_local_* ids) so they
-        // are never silently wiped when the connection returns.
+        // Live server feed is the single source of truth. Keep only offline
+        // listings that have not yet been pushed (p_local_* ids).
         const localOnly = prev.filter(p => p.id.startsWith('p_local_'));
-        return [...serverProducts, ...localOnly] as Product[];
+        return [...pushedProducts, ...serverProducts, ...localOnly] as Product[];
       });
     } catch {
       setIsServerConnected(false);
     }
-  }, []);
+  }, [addNotification]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -162,16 +203,6 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
   }, [notifications, isLoaded]);
 
   // ── Notification helpers ───────────────────────────────────────
-  const addNotification = useCallback((title: string, body: string, type: AppNotification['type']) => {
-    const newNotif: AppNotification = {
-      id: `notif_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-      title, body, type,
-      createdAt: new Date().toISOString(),
-      isRead: false,
-    };
-    setNotifications(prev => [newNotif, ...prev]);
-  }, []);
-
   const markNotificationsRead = useCallback(() => {
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
   }, []);
@@ -247,9 +278,16 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
       addNotification('Listing Published Live', `"${productData.title}" is now live for all users across Nepal!`, 'listing');
       return { ok: true, product: serverProduct as Product };
     } catch {
-      // Fallback: keep the optimistic local product
+      // Fallback: keep the optimistic local product and persist it so it is
+      // automatically pushed to the server when connectivity returns.
       setIsServerConnected(false);
-      addNotification('Listing Saved Locally', `"${productData.title}" was saved to your device. It will sync when the server is reachable.`, 'listing');
+      const payload = {
+        ...productData,
+        sellerId: currentUser?.id || 'u1',
+        sellerName: currentUser?.name || 'Bazaar Member',
+      };
+      AsyncStorage.setItem(pendingKey(optimisticId), JSON.stringify(payload)).catch(() => {});
+      addNotification('Listing Saved Locally', `"${productData.title}" was saved to your device. It will sync automatically when the server is reachable.`, 'listing');
       return { ok: true, product: newProduct };
     }
   }, [currentUser, addNotification]);
@@ -280,6 +318,9 @@ export const AppProvider = ({ children }: { children: ReactNode }) => {
 
   const deleteProduct = useCallback(async (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId));
+    if (productId.startsWith('p_local_')) {
+      AsyncStorage.removeItem(pendingKey(productId)).catch(() => {});
+    }
     try {
       await API.deleteProduct(productId, currentUser?.id || 'u1');
       setIsServerConnected(true);
